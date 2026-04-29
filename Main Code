@@ -1,0 +1,127 @@
+#include <Arduino.h>
+#include <TFT_eSPI.h>
+#include "enemy_1.h"
+#include "player_1.h"
+
+#define LCD_POWER_ON 15
+#define LCD_BL 38
+#define Right 14
+#define Left 0
+
+#define VRX_PIN 10  // X-axis analog
+#define VRY_PIN 11  // Y-axis analog
+#define SW_PIN  3   // Switch
+
+TFT_eSPI tft = TFT_eSPI();
+
+int px= 0;
+int py=286;
+int carSize = 34;
+
+int debounce=0;
+int debounce2=0;
+
+int eX[5]; // enemy X coordinates 
+int eY[5]={34,-3,-30,-57,-84}; 
+
+long int t = 0;
+long int gameSpeed = 600000;
+int score=0;
+bool gameRun=true;
+
+void setup() {
+  // Power up LCD
+  pinMode(LCD_POWER_ON, OUTPUT);
+  // Turn on backlight
+  pinMode(LCD_BL, OUTPUT);
+  digitalWrite(LCD_POWER_ON, HIGH);
+  delay(100);
+  digitalWrite(LCD_BL, HIGH);
+  pinMode(Right,INPUT_PULLUP);
+  pinMode(Left,INPUT_PULLUP);
+  pinMode(SW_PIN, INPUT_PULLUP);
+
+
+  // Init display
+  tft.init();
+  tft.setSwapBytes(true);
+  tft.fillScreen(TFT_BLACK);
+  for(int i=0 ; i<5 ; i++){
+    eX[i]=random(0,5)*34;
+  }
+  
+  tft.pushImage(eX[0],eY[0],carSize,carSize,enemy_1);
+  tft.pushImage(px,py,carSize,carSize,player_1);
+  tft.drawLine(0,23,170,23,TFT_BLUE);
+  tft.drawString("SCORE: ",4,4,2);
+
+  
+}
+
+
+void drawPlayer(){
+  if (digitalRead(Right)==0 && px < 136){
+    if (debounce == 0){
+      debounce=1;
+      tft.fillRect(px,py,carSize,carSize, TFT_BLACK);
+      px=px + TFT_WIDTH/5 ; 
+      tft.pushImage(px,py,carSize,carSize,player_1);
+    }//else debounce = 0; y not here 
+  }else debounce = 0;
+
+   if (digitalRead(Left)==0 && px > 0){
+    if (debounce2== 0){
+      debounce2=1;
+      tft.fillRect(px,py,carSize,carSize, TFT_BLACK);
+      px=px - TFT_WIDTH/5 ; 
+      tft.pushImage(px,py,carSize,carSize, player_1);
+    }//else debounce2 = 0; why not here 
+  }else debounce2 = 0;
+}
+
+void drawEnemy(){
+  for(int i = 0 ; i<5 ; i++){
+    if(eY[i]>24){
+      tft.fillRect(eX[i],eY[i],carSize,carSize,TFT_BLACK);
+      eY[i]=eY[i]+34;
+      tft.pushImage(eX[i],eY[i],carSize,carSize,enemy_1);
+    }else{
+      eY[i]=eY[i]+34;
+    }
+    if(eY[i]>=320){
+      eY[i]=30;
+      eX[i]=random(0,5)*34;
+      score++;
+      if (gameSpeed>300000){
+        gameSpeed-=4000;
+      }
+      tft.drawString(String(score),50,4,2);
+      tft.drawString(String(gameSpeed),100,4,2);
+    }
+    
+  }
+}
+
+void checkCollision(){
+  for(int i = 0 ; i<5 ; i++){
+    if (px == eX[i] && (eY[i] + carSize >= py && eY[i] <= py + carSize)) {
+    gameRun = false;
+    tft.drawString("GAME OVER", 10, 150, 4);
+  }
+}
+
+}
+
+
+void loop() {
+  if (gameRun==true){
+    t++;
+    if(t>gameSpeed){
+      drawEnemy();
+      t=0;
+  }
+
+  }
+  checkCollision();
+  drawPlayer();
+}
